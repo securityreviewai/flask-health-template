@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: opensearch
+  namespace: health
+spec:
+  serviceName: opensearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensearch
+  template:
+    metadata:
+      labels:
+        app: opensearch
+    spec:
+      containers:
+        - name: opensearch
+          image: opensearchproject/opensearch:2.15.0
+          ports:
+            - containerPort: 9200
+          env:
+            - name: discovery.type
+              value: single-node
+            - name: plugins.security.disabled
+              value: "true"
+            - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: opensearch-secrets
+                  key: admin-password
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/opensearch/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: managed-csi
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch
+  namespace: health
+spec:
+  clusterIP: None
+  selector:
+    app: opensearch
+  ports:
+    - port: 9200
