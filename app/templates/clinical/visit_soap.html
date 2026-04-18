@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SOAP notes — visit {{ visit.id }}</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        line-height: 1.5;
+        max-width: 48rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        color: #1a1a1a;
+      }
+      h1 {
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      .meta {
+        color: #555;
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+      }
+      .soap-body {
+        white-space: normal;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 1rem 1.25rem;
+        background: #fafafa;
+      }
+      .empty {
+        color: #666;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SOAP notes</h1>
+    <p class="meta">Visit ID {{ visit.id }} · {{ visit.visit_date }}</p>
+    {% if visit.soap_notes %}
+    <div class="soap-body">{{ soap_html }}</div>
+    {% else %}
+    <p class="empty">No SOAP notes recorded for this visit.</p>
+    {% endif %}
+  </body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Patient {{ patient.id }}</title>
+    <style>
+      body { font-family: Helvetica, Arial, sans-serif; font-size: 12pt; margin: 1.5rem; }
+      h1 { font-size: 16pt; }
+      dt { font-weight: bold; margin-top: 0.5rem; }
+      dd { margin: 0 0 0.25rem 0; }
+      ul { margin: 0.25rem 0 0 1.25rem; padding: 0; }
+    </style>
+  </head>
+  <body>
+    <h1>Patient summary</h1>
+    <dl>
+      <dt>Patient ID</dt>
+      <dd>{{ patient.id }}</dd>
+      <dt>Name</dt>
+      <dd>{{ patient.full_name }}</dd>
+      <dt>Date of birth</dt>
+      <dd>{{ patient.date_of_birth or "—" }}</dd>
+      <dt>Allergies</dt>
+      <dd>
+        {% if allergies %}
+        <ul>
+          {% for item in allergies %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        —
+        {% endif %}
+      </dd>
+      <dt>Notes</dt>
+      <dd>{{ patient.notes or "—" }}</dd>
+    </dl>
+  </body>
+</html>
