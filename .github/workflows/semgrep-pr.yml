@@ -1,0 +1,130 @@
+name: Semgrep PR Scan
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  semgrep:
+    name: Run semgrep
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Semgrep
+        run: python -m pip install --upgrade semgrep
+
+      - name: Run Semgrep scan for PR comment
+        continue-on-error: true
+        run: semgrep scan --config auto --json --output semgrep.json
+
+      - name: Build PR comment body
+        run: |
+          python - <<'PY' > semgrep-comment.md
+          import json
+          from pathlib import Path
+
+          marker = "<!-- semgrep-pr-scan -->"
+
+          print(marker)
+          print("## Semgrep Results")
+          print("")
+
+          semgrep_output = Path("semgrep.json")
+          if not semgrep_output.exists():
+              print("Semgrep did not produce `semgrep.json` output.")
+              raise SystemExit(0)
+
+          data = json.loads(semgrep_output.read_text() or "{}")
+          findings = data.get("results", [])
+          errors = data.get("errors", [])
+
+          print(f"- Findings: **{len(findings)}**")
+          print(f"- Errors: **{len(errors)}**")
+          print("")
+
+          if findings:
+              print("### Top findings")
+              for finding in findings[:20]:
+                  rule = finding.get("check_id", "unknown-rule")
+                  file_path = finding.get("path", "unknown-path")
+                  line = (finding.get("start") or {}).get("line")
+                  location = f"{file_path}:{line}" if line else file_path
+                  message = (
+                      finding.get("extra", {}).get("message") or "No message provided."
+                  ).strip().replace("\n", " ")
+                  if len(message) > 180:
+                      message = message[:177] + "..."
+                  print(f"- `{rule}` at `{location}` - {message}")
+              if len(findings) > 20:
+                  print(f"- ...and {len(findings) - 20} more findings")
+          else:
+              print("No Semgrep findings :white_check_mark:")
+
+          if errors:
+              print("")
+              print("### Scan errors")
+              for error in errors[:5]:
+                  message = str(error).replace("\n", " ")
+                  if len(message) > 180:
+                      message = message[:177] + "..."
+                  print(f"- {message}")
+              if len(errors) > 5:
+                  print(f"- ...and {len(errors) - 5} more scan errors")
+          PY
+
+      - name: Post Semgrep results to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const marker = "<!-- semgrep-pr-scan -->";
+            const body = fs.readFileSync("semgrep-comment.md", "utf8");
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 }
+            );
+
+            const existing = comments.find(
+              (comment) =>
+                comment.user?.type === "Bot" &&
+                comment.body?.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
+
+      - name: Run Semgrep scan for SARIF
+        run: semgrep scan --config auto --sarif --output semgrep.sarif
+
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
